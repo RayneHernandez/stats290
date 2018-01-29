@@ -1,0 +1,468 @@
+---
+title: "Stat 290: Assignment 1"
+output:
+     html_notebook
+---
+
+_Due: 11:59:00 hrs., Jan 28, 2018_
+
+### Instructions
+
+Follow these instructions _paying full attention to details_ to get
+proper credit.
+
+- R version 3.4.3 should be used for all exercises.
+- Write your answers (text or code) into the chunks named
+  `q_1a`, `q_2`, `q_4i`, etc.
+- Do not edit or shorten this markdown/notebook file, or rename chunks.
+- You may want to check that you can knit/run and preview this
+  notebook in RStudio without error before you enter anything, and,
+  after you enter your answers. 
+- Note that the file `PandP.txt` must be in the same directory as this file
+- You will submit this filled in `.Rmd` file (not the html) file as
+  your work. We are awaiting some info on using canvas for this
+  submission, so please note that precise instructions will be
+  announced in the next few days.
+
+### Q1 (Short answers) [11 pts]
+
+No more than 2 sentences.
+
+In an interactive R session...
+
+__1a__. What does `x = 2` do?
+
+```{r q_1a, eval = FALSE}
+x = 2
+# This assigns the value 2  to the variable x
+```
+
+__1b__. What does `(x = 5)` do?
+
+```{r q_1b, eval = FALSE}
+(x = 5)
+# This assigns the value 5 to x.
+```
+
+__1c__. What does `(x == 2)` do?
+
+```{r q_1c, eval = FALSE}
+(x == 2)
+# This checks if the value in variable is equal to 2. If not returns FALSE, otherwise true. 
+```
+
+__1d__. What is the difference between `x[]` and `x[[]]` subsetting on lists?
+
+```{r q_1d, eval = FALSE}
+# x[] allowd you to slice, and genrally returns another list. While x[[]] returns a single numeric element
+```
+
+__1e__. What's the difference between `&` and `&&`?
+
+```{r q_1e, eval = FALSE}
+# & returns element by element wise comparisons of objects while && returns TRUE only if two objects are exactly equal. 
+```
+
+__1f__. Look up the definition of the function `is.primitive`
+     and explain _precisely_ how it works.
+
+```{r q_1f, eval = FALSE}
+# Returns true if the argument is a primitive function. These are functions found only in 
+# the base package that are implemented in C.
+```
+
+__1g__. How does the `save/load` pair of functions differ from
+`saveRDS/readRDS` pair?
+
+```{r q_1g, eval = FALSE}
+# saveRDS/readRDS serializez only a single object to file, without saving the environment. 
+# save/load can save multiple functions to file, and saves the environment.
+```
+
+__1h__. Download the source code for R version 3.4.3 from CRAN.  In what file is
+    the source for the R function `readBin` located
+    _relative_ to the top-level directory `R-3.4.3`?
+
+```{r q_1h, eval = FALSE}
+# ~/src/library/base/
+```
+
+__1i__. Why is the comment `##hence length(what) == 1` correct
+    in the source for the R function `readBin`?
+```{r q_1i, eval = FALSE}
+readBin
+```
+
+__1j__. What two features of R make arguments such as `as.is=!stringsAsFactors, fill=!blank.lines.skip` work in
+    `read.table` ?
+
+```{r q_1j, eval = FALSE}
+# The first feature that defualt arguments can be specified and are evaulated lazily. The the second feature is that arguments are not statically typed, meaning they can be arbitrary, even other functions. 
+```
+
+__1k__. Explain the result of
+```{r, eval = FALSE}
+f1 <- function(x = {y <- 7; 2}, y = 0) {
+x + y
+}
+f1()
+[1] 9
+```
+
+```{r q_1k, eval = FALSE}
+## When called by default, first assigns 0 to y, but then assigns 7 to y and 2 to x. Then returns the sum of the x an y which is 9. 
+```
+
+
+### Q2 (Primitive functions) [4 pts]
+
+Write a function to list all the primitive functions in the
+`base` package. Then provide that list.
+
+```{r q_2_fndef, eval = TRUE}
+listPrimitiveFunctionsInBase <- function() {
+  objs <- mget(ls("package:base"), inherits = TRUE)
+  funs <- Filter(is.function, objs)
+  prim <- Filter(is.primitive, funs)
+  return(prim)
+}
+```
+
+Print the list by invoking the function.
+```{r q_2_fncall, eval = TRUE}
+listPrimitiveFunctionsInBase()
+```
+
+
+### Q3 (Concatenation operator) [8 pts]
+
+  Define a `%+%` inline operator that works _only_ on two data frames
+  `x` and `y` containing `integer`, `character` (_not_ `factor`!) and
+  `numeric` vectors as follows.
+
+  If the names and types all match, perform an `rbind` (append rows);
+  otherwise, if the number of rows match perform a `cbind` (append
+  columns). Else, throw an error due to incompatibility per hint below.
+
+  Provide meaningful names for the variables when necessary. Do
+  account for the case where `x` and `y` may have some common names.
+
+#### Hints
+
+- Useful functions are: `all`, `%in%`, `nrow`, `sapply`, `names`,
+  `intersect`, `typeof`, `match`, `paste`.
+- Note that `data.frame(a1 = 1:2) %+% data.frame(b1 = 1L)` should
+  throw an error of the form:
+```{r, error = TRUE}
+stop("%+%: Incompatible types for x and y")
+```
+- If your code works as expected, you should get `TRUE` for the test
+  cases below. Until then, the results for the test cases will be
+  `FALSE`.
+
+```{r q_3, eval = TRUE}
+`%+%` <- function(x, y) {
+  isCorrectType <- function(obj) {
+    return(obj %in% c("numeric", "integer", "character"))
+  }
+  dataFrameCorrect <- function(frame) {
+    all(sapply(sapply(frame, class), isCorrectType))
+  }
+  if (!(dataFrameCorrect(x) && dataFrameCorrect(y))) {
+    stop("%+%: Incompatible types for x and y")
+  }
+  if (identical(sapply(x, class), sapply(y, class))) {
+    return(rbind(x, y))
+  }
+  if (nrow(x) == nrow(y)) {
+    matches <- match(names(x), names(y))
+    matches <- matches[!is.na(matches)] 
+    for (i in matches) {
+      colnames(x)[i] <- paste(colnames(x)[i], ".x", sep="")
+      colnames(y)[i] <- paste(colnames(y)[i], ".y", sep="")
+    }
+    return(cbind(x,y))
+  }
+  stop("%+%: Incompatible types for x and y")
+}
+```
+
+Test that it works correctly for some inputs using `identical` which
+returns `TRUE` if two passed arguments are identical. So if your code
+is correct, the result of evaluating these test chunks should be
+`TRUE`. Until then, the results will be `FALSE`.
+
+```{r q_3_test1, eval = TRUE, error = TRUE}
+x <- data.frame(a1 = 1:3, b1 = letters[1:3], stringsAsFactors = FALSE)
+identical(dim(x %+% x), c(2L * nrow(x), ncol(x)))
+```
+
+```{r q_3_test2, eval = TRUE, error = TRUE}
+x <- data.frame(a1 = 1:3, b1 = letters[1:3], stringsAsFactors = FALSE)
+y <- data.frame(a2 = 4:6, b2 = letters[4:6], stringsAsFactors = FALSE)
+identical(dim(x %+% y), c(nrow(x), ncol(x) + ncol(y)))
+identical(names(x %+% y), c(names(x), names(y)))
+```
+
+```{r, q_3_test3, eval = TRUE, error = TRUE}
+x <- data.frame(a1 = 1:3, b1 = letters[1:3], stringsAsFactors = FALSE)
+z <- data.frame(a1 = 4:6, b2 = letters[4:6], stringsAsFactors = FALSE)
+identical(dim(x %+% z), c(nrow(x), ncol(x) + ncol(z)))
+identical(names(x %+% z), c("a1.x", "b1", "a1.y", "b2"))
+```
+
+Also check that `data.frame(a1 = 1:2) %+% data.frame(b1 = 1L)` throws an error.
+
+### Q4 (Huffman encoding) [9 pts]
+
+  A classic programming example is Huffman encoding; see
+  [](https://mitpress.mit.edu/sicp/full-text/sicp/book/node41.html). That
+  example is in Scheme but `huffEx.R` contains an R version.  The main
+  difference between a purely functional implementation and the one in
+  R is the avoidance of recursion, particularly because R does not
+  support things like tail recursion. Also, we make do with generic
+  lists in R.
+
+  For this exercise, complete parts of the code below; you will need the file
+  `PandP.txt` (included on coursework). For _your_
+  (not our) checking you need to make sure the file is available in
+  the same directory as this markdown.
+
+```{r q4_setup, eval = TRUE}
+##
+## Make a leaf node (also a codeTree) with given symbol and given weight
+##
+makeLeaf <- function(symbol, weight)
+    list(list(symbol=symbol, weight=weight))
+
+is.leaf <- function(object) is.null(object[[1]]$left) && is.null(object[[1]]$right)
+
+## Accessors
+symbol <- function(object) object[[1]]$symbol
+weight <- function(object) object[[1]]$weight
+
+##
+## Construct a codeTree with given left and right code trees
+##
+makeCodeTree <- function(left, right)
+    list(list(left=left,
+              right=right,
+              symbol=c(symbol(left), symbol(right)),
+              weight=weight(left) + weight(right)))
+
+## Left and right branch accessors
+leftBranch <- function(tree) tree[[1]]$left
+rightBranch <- function(tree) tree[[1]]$right
+
+##
+## Traverse the tree per bit
+##
+chooseBranch <- function(bit, branch) {
+    if (bit == 0)
+        leftBranch(branch)
+    else if (bit == 1)
+        rightBranch(branch)
+    else
+        stop(paste("bad bit in chooseBranch", bit))
+}
+```
+
+__4a__. Write code to create a vector of ordered frequencies from the
+    vector \texttt{helloWorld} (1 liner)
+
+```{r q_4a, eval = TRUE}
+helloWorld <- c("H", "e", "l", "l", "o", " ",
+                "W", "o", "r", "l", "d", "!")
+
+helloFreq <- table(helloWorld)
+```
+
+```{r}
+makeLeaf(names(helloFreq[2])[[1]], helloFreq[[2]])
+```
+
+__4b__. Create a list of Leaf nodes each of which represents a character
+    of the `helloWorld` vector, ordered of  frequencies. _Hint: `lapply`_
+
+```{r q_4b, eval = TRUE}
+helloLeafList <- c()
+for (i in 1:length(helloFreq)) {
+    helloLeafList <- c(helloLeafList, makeLeaf(names(helloFreq[i]), helloFreq[i]))
+}
+```
+
+__4c__. Complete the function `encode` and `decode` (one line each).
+
+```{r q_4c_encode, eval = TRUE}
+##
+## Given a code, encode the vector of chars
+## and return a vector of integers representing bits
+##
+encode <- function(codeTree, text) {
+    result <- list()
+    n <- length(result)
+    for (ch in text) {
+        subTree <- codeTree
+        while (!is.leaf(subTree)) {
+            n <- n + 1
+            if (ch %in% symbol(leftBranch(subTree))) {
+                result[[n]] <- 0
+                subTree <- leftBranch(subTree)
+            } else {
+                result[[n]] <- 1
+                subTree <- rightBranch(subTree)
+            }
+        }
+    }
+    ## 4c. return a vector of integers
+    # YOUR CODE HERE
+}
+```
+
+```{r q_4c_decode, eval = TRUE}
+##
+## Given a codeTree, decode the vector of bits
+## and return a character vector
+##
+decode <- function(bits, codeTree) {
+    result <- list()
+    n <- length(result)
+    currentBranch <- codeTree
+    for (bit in bits) {
+        currentBranch <- chooseBranch(bit, currentBranch)
+        if (is.leaf(currentBranch)) {
+            n <- n + 1
+            result[[n]] <- symbol(currentBranch)
+            currentBranch <- codeTree
+        }
+    }
+    ## 4c. return a vector of characters
+    # YOUR CODE HERE
+}
+```
+
+__4d__. Complete the function `createCodeTree` (no more than 4 or 5 lines).
+
+```{r q_4d, eval = TRUE}
+##
+## Given a list of codeTrees ordered by weight, combine the two lowest
+## weight codeTrees and insert it in the rest of the list, preserving
+## the weight orderings
+##
+combine <- function(trees) {
+    insert <- function(item, target) {
+        if (length(target) == 0) {
+            item
+        } else {
+            x <- local({tmp <- sapply(target, weight); split(seq(target), tmp > weight(item))})
+            c(target[x[["FALSE"]]], list(item), target[x[["TRUE"]]])
+        }
+    }
+    if (length(trees) < 2)
+        trees
+    else {
+        ## Combine the first two
+        combined <- makeCodeTree(trees[[1]], trees[[2]])
+        insert(combined, trees[-(1:2)])
+    }
+}
+
+##
+## Create a single codeTree from a list of codeTrees
+## Typically arguments is a list of Leaf nodes
+## Hint: reduce to a singleton using combine
+##
+
+createCodeTree <- function(trees) {
+    ## YOUR CODE HERE
+}
+```
+
+__4e__. Create a code tree for the `helloWorld` vector.
+
+```{r q_4e, eval = TRUE}
+codeTree <- NULL # YOUR CODE HERE (replace NULL)
+```
+
+__4f__. Encode and decode `helloWorld` and check that the
+    encoding and decoding process are consistent (3 lines max).
+
+```{r q_4f, eval = TRUE}
+# YOUR CODE HERE
+```
+
+__4g__. Decode the message in `testMessage` and print it as _one_ string.
+
+```{r q_4g_setup, eval = TRUE}
+testMessage <- scan(
+    textConnection(
+       "0 1 0 1 0 0 1 1 0 1 0 0 1 1 1 0 1 1 1 1 1 1 1 0 1 0 1 1 0 1 1 0 0 0 1 1 1
+        0 1 1 1 0 1 1 0 1 1 0 0 1 1 1 1 1 0 0 1 1 0 1 1 1 0 1 0 1 0 0 1 1 1 0 1 0
+        1 1 1 0 0 1 0 0 0 0 0 1 1 0 1 0 0 0 1 1 0 0 0 0 0 1 0 1 1 1 0 1 1 1 1 1 0
+        0 0 0 0 1 1 1 0 1 1 1 1 0 1 1 1 1 0 0 0 1 1 1 0 1 1 0 0 1 1 0 0 0 1 1 1 0
+        0 1 1 0 1 0 0 1 0 0 0 1 1 1 0 0 0 1 1 1 0 1 0 0 1 1 1 1 0 0 0 1 1 0 1 1 0
+        1 0 0 0 0 1 1 0 1 0 0 1 0 1 1 1 1 0 0 1 0 1 0 0 0 1 1 1 1 0 0 0 1 1 0 0 0
+        1 1 1 0 0 0 0 0 1 0 1 1 1 0 0 1 0 0 0 0 1 1 1 1 1 0 0 1 1 0 1 0 1 1 1 0 1
+        1 1 1 1 0 0 1 0 0 0 1 1 0 1 1 0 0 0 0 0 0 0 0 1 1 1 1 0 1 0 1 1 0 0 1 0 0
+        1 1 1 0 0 0 1 0 0 1 1 0 0 0 1 0 1 1 1 1 1 0 0 0 1 1 1 0 1 0 0 1 1 1 0 1 0
+        1 1 0 0 1 1 1 0 0 0 1 0 1 0 0 1 0 1 1 1 1 0 0 0 0 0 0 1 1 1 0 1 0 0 1 1 0
+        0 0 0 0 1 1 1 0 1 0 1 1 1 0 1 0 1 0 1 1 1 0 0 0 1 0 1 1 0 0 0 0 1 0 0 1 0
+        0 1 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0 0 1 0 1 0 0 1 1 1 1 0 0 1 1 1 0 1 1 1 1
+        0 0 1 1 0 1 1 0 1 1 0 0 0 0 1 1 1 1 0 0 0 0 1 0 1 1 0 0 1 1 0 1 1 1 0 0 1
+        1 0 1 0 1 1 0 1 1 1 1 1 0 1 0 0 1 1 0 1 0 1 1 0 0 1 1 1 0 1 1 1 0 0 0 1 1
+        1 1 1 1 0 0 0 0 1 1 1 0 0 1 1 0 1 0 1 0 1 0 1 1 0 0 0 1 0 1 1 1 1 1 0 1 0
+        1 1 1 0 1 0 0 1 1 0 1 0 1 1 1 1 0 0 0 0 0 1 1 1 0 1 0 1 1 0 0 1 1 1 0 1 1
+        1 0 1 1 0 1 1 0 0 1 1 0 0 1 0 1 1 1 1 0 0 1 1 0 1 0 1 1 1 0 1 0 1 0 1 1 0
+        1 1 0 0 0 1 1 1 0 1 1 1 0 1 1 0 1 1 0 0 1 1 0 0 1 1 1 0 0 1 1 0 1 0 1 1 0
+        1 1 0 1 0 1 1 1 1"),
+    what=integer(0))
+
+
+testMessageFreq <- scan(
+    textConnection(
+        " 1  1  1  1  1  1  1  1  2  2  2  2  2  3  3  3  4  6  6  7  7  7  7
+          8 10 12 12 18 28"),
+    what = integer(0))
+
+names(testMessageFreq) <- c("(", ")", ":", "E", "T", "W", "b", "y", ",",
+                            "A", "I", "P", "w", "d", "f", "p", "t",
+                            "e", "u", "g", "l", "o", "s", "m", "i",
+                            "n", "r", "a", " ")
+```
+
+```{r q_4g, eval = TRUE}
+# YOUR CODE HERE
+```
+
+__4h__. Explain what happens in the lines
+```{r, eval = FALSE}
+x <- local({tmp <- sapply(target, weight); split(seq(target), tmp > weight(item))})
+c(target[x[["FALSE"]]], list(item), target[x[["TRUE"]]])
+```
+of the function `combine` in part d. Particularly state what happens for the extreme cases.
+
+```{r q_4h, eval = FALSE}
+## YOUR ANSWER HERE
+```
+
+__4i__. Encode and decode `PandPHex` and check they encode and decode consistently.
+Ignoring the storage of the code tree and other metadata, what is the approximate
+compression (compressed size / original size) you get for the `Pride and Prejudice`
+snippet? (Assume 8 bits/char). Print this ratio.
+
+```{r q_4i_setup, eval = TRUE}
+PandP <- readBin(con="PandP.txt", what=raw(0), n=10^6)
+PandPHex <- as.character(PandP)
+```
+
+```{r q_4i, eval = TRUE}
+# YOUR CODE HERE
+```
+
+### Session Info
+
+Leave everything below as is.
+
+```{r}
+sessionInfo()
+```
